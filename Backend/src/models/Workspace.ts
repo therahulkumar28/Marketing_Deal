@@ -1,4 +1,4 @@
-// models/Workspace.js
+// models/Workspace.ts
 import mongoose from "mongoose";
 
 const workspaceSchema = new mongoose.Schema({

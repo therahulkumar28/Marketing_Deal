@@ -1,13 +1,41 @@
-import User from "../models/User.js";
-import Workspace from "../models/Workspace.js";
+import { Request, Response } from 'express';
+import { z } from 'zod';
+import Workspace from "../models/Workspace";
 
-export async function createWorkspace(req, res) {
+// Define input validation schema
+const createWorkspaceSchema = z.object({
+    workspaceName: z.string().min(5, "Workspace name is required")
+});
+
+// Type for Authenticated Request with User ID
+interface AuthenticatedRequest extends Request {
+    user: {
+        id: string;
+    };
+}
+
+// Create Workspace Controller
+export async function createWorkspace(req: AuthenticatedRequest, res: Response) {
     try {
-        const { workspaceName } = req.body;
+        // Validate input
+        const parseResult = createWorkspaceSchema.safeParse(req.body);
+        if (!parseResult.success) {
+            return res.status(400).json({
+                message: "Validation failed",
+                success: false,
+                errors: parseResult.error.errors
+            });
+        }
+
+        const { workspaceName } = parseResult.data;
+
+        // Check if workspace already exists
         const existingWorkspace = await Workspace.findOne({ name: workspaceName });
         if (existingWorkspace) {
             return res.status(409).json({ message: "Workspace already exists", success: false, existingWorkspace });
         }
+
+        // Create and save new workspace
         const newWorkspace = new Workspace({
             name: workspaceName,
             user_id: req.user.id,
@@ -15,23 +43,26 @@ export async function createWorkspace(req, res) {
         });
         const savedWorkspace = await newWorkspace.save();
         if (!savedWorkspace) {
-            return res.status(400).json({ message: "Failed to save workspace", success: false, savedWorkspace });
+            return res.status(400).json({ message: "Failed to save workspace", success: false });
         }
+
         return res.status(201).json({ message: "Workspace saved successfully", success: true, savedWorkspace });
-    } catch (error) {
+    } catch (error: any) {
         res.status(500).json({ message: 'Internal Server Error', success: false, error: error.message });
     }
 }
 
-export async function getWorkspaces(req, res) {
+// Get Workspaces Controller
+export async function getWorkspaces(req: AuthenticatedRequest, res: Response) {
     try {
-        const workspace = await Workspace.find({ user_id: req.user.id });
-        console.log(req.user_id)
-        if (!workspace) {
-            return res.status(404).json({ message: "No workspaces found", success: false, workspace });
+        const workspaces = await Workspace.find({ user_id: req.user.id });
+        
+        if (!workspaces || workspaces.length === 0) {
+            return res.status(404).json({ message: "No workspaces found", success: false });
         }
-        return res.status(200).json({ message: "Workspaces found", success: true, workspace  });
-    } catch (error) {
+
+        return res.status(200).json({ message: "Workspaces found", success: true, workspaces });
+    } catch (error: any) {
         res.status(500).json({ message: 'Internal Server Error', success: false, error: error.message });
     }
 }
