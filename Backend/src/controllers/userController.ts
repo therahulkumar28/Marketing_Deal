@@ -78,10 +78,10 @@ export async function userLogin(req: Request, res: Response) {
 
         const token = jwt.sign({ id: user._id, email }, process.env.SECRET_KEY as string);
 
-        const userObject = user.toObject();
-        delete userObject.password;
+        // Destructure to exclude the password
+        const { password: _password, ...userWithoutPassword } = user.toObject();
 
-        res.status(200).json({ token, user: userObject, success: true });
+        res.status(200).json({ token, user: userWithoutPassword, success: true });
     } catch (err: any) {
         res.status(500).json({ error: err.message });
     }
